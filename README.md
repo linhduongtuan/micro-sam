@@ -26,6 +26,12 @@ You can install `micro_sam` via conda:
 ```
 conda install -c conda-forge micro_sam napari pyqt torch_em
 ```
+Or 
+```
+conda env create -f <ENV>.yaml -n <ENV_NAME> # <ENV> is either environment_cpu.yaml or environment_gpu.yaml
+conda activate <ENV_NAME>
+pip install -e .
+```
 You can then start the `micro_sam` tools by running `$ micro_sam.annotator` in the command line.
 
 For an introduction in how to use the napari based annotation tools check out [the video tutorials](https://www.youtube.com/watch?v=ket7bDUP9tI&list=PLwYZXQJ3f36GQPpKCrSbHjGiH39X4XjSO&pp=gAQBiAQB).
