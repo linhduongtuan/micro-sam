@@ -89,7 +89,8 @@ def finetune_livecell(args):
 def main():
     parser = argparse.ArgumentParser(description="Finetune Segment Anything for the LiveCELL dataset.")
     parser.add_argument(
-        "--input_path", "-i", default="",
+        "--input_path", "-i", 
+        default="/proj/aicell/users/linh/cv/micro-sam-ori/database/LM/livecell",
         help="The filepath to the LiveCELL data. If the data does not exist yet it will be downloaded."
     )
     parser.add_argument(
@@ -98,6 +99,7 @@ def main():
     )
     parser.add_argument(
         "--save_root", "-s",
+        default="/proj/aicell/users/linh/cv/micro-sam/weights/livecell",
         help="Where to save the checkpoint and logs. By default they will be saved where this script is run."
     )
     parser.add_argument(
@@ -106,6 +108,7 @@ def main():
     )
     parser.add_argument(
         "--export_path", "-e",
+        default="/proj/aicell/users/linh/cv/micro-sam/finetuned_checkpoints/livecell",
         help="Where to export the finetuned model to. The exported model can be used in the annotation tools."
     )
     args = parser.parse_args()
