@@ -5,6 +5,8 @@ from collections import OrderedDict
 
 import torch
 from torchvision.utils import make_grid
+from torch.cuda.amp import autocast
+
 
 from .sam_trainer import SamTrainer
 
@@ -83,7 +85,8 @@ class JointSamTrainer(SamTrainer):
 
             self.optimizer.zero_grad()
 
-            with forward_context():
+            # with forward_context():
+            with forward_context(device_type='cuda'):
                 # 1. train for the interactive segmentation
                 (loss, mask_loss, iou_regression_loss, model_iou,
                  sampled_binary_y) = self._interactive_train_iteration(x, labels_instances)
@@ -92,7 +95,8 @@ class JointSamTrainer(SamTrainer):
 
             self.optimizer.zero_grad()
 
-            with forward_context():
+            # with forward_context():
+            with forward_context(device_type='cuda'):
                 # 2. train for the automatic instance segmentation
                 unetr_loss = self._instance_iteration(x, labels_for_unetr)
 
@@ -130,12 +134,14 @@ class JointSamTrainer(SamTrainer):
 
                 input_check_done = self._check_input_normalization(x, input_check_done)
 
-                with forward_context():
+                # with forward_context():
+                with forward_context(device_type='cuda'):
                     # 1. validate for the interactive segmentation
                     (loss, mask_loss, iou_regression_loss, model_iou,
                      sampled_binary_y, metric) = self._interactive_val_iteration(x, labels_instances, val_iteration)
 
-                with forward_context():
+                # with forward_context():
+                with forward_context(device_type='cuda'):
                     # 2. validate for the automatic instance segmentation
                     unetr_loss, unetr_metric = self._instance_iteration(x, labels_for_unetr, metric_for_val=True)
 

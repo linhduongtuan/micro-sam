@@ -21,7 +21,7 @@ import zarr
 from elf.io import open_file
 from nifty.tools import blocking
 from skimage.measure import regionprops
-from skimage.segmentation import relabel_sequential
+# from skimage.segmentation import relabel_sequential
 
 from .__version__ import __version__
 
@@ -928,11 +928,83 @@ def load_image_data(
                 image_data = image_data[:]
     return image_data
 
+def relabel_sequential(label_field, offset=1):
+    """Relabel arbitrary labels to {`offset`, ... `offset` + number_of_labels}.
 
+    Parameters
+    ----------
+    label_field : numpy array of int, arbitrary shape
+        An array of labels, which must be non-negative integers.
+    offset : int, optional
+        The return labels will start at `offset`, which should be strictly positive.
+
+    Returns
+    -------
+    relabeled : numpy array of int, same shape as `label_field`
+        The input label field with labels mapped to
+        {offset, ..., number_of_labels + offset - 1}.
+    """
+    if offset <= 0:
+        raise ValueError("Offset must be strictly positive.")
+    if np.min(label_field) < 0:
+        raise ValueError("Cannot relabel array that contains negative values.")
+    
+    offset = int(offset)
+    in_vals = np.unique(label_field)
+    
+    # Always map 0 to 0
+    if 0 in in_vals:
+        out_vals = np.concatenate([[0], np.arange(offset, offset + len(in_vals) - 1)])
+    else:
+        out_vals = np.arange(offset, offset + len(in_vals))
+    
+    out_array = np.zeros_like(label_field)
+    for new_id, old_id in enumerate(in_vals):
+        out_array[label_field == old_id] = out_vals[new_id]
+    
+    return out_array
+
+# def segmentation_to_one_hot(
+#     segmentation: np.ndarray,
+#     segmentation_ids: Optional[np.ndarray] = None,
+# ) -> torch.Tensor:
+#     """Convert the segmentation to one-hot encoded masks.
+
+#     Args:
+#         segmentation: The segmentation.
+#         segmentation_ids: Optional subset of ids that will be used to subsample the masks.
+
+#     Returns:
+#         The one-hot encoded masks.
+#     """
+#     masks = segmentation.copy()
+#     if segmentation_ids is None:
+#         n_ids = int(segmentation.max())
+
+#     else:
+#         assert segmentation_ids[0] != 0, "No objects were found."
+
+#         # the segmentation ids have to be sorted
+#         segmentation_ids = np.sort(segmentation_ids)
+
+#         # set the non selected objects to zero and relabel sequentially
+#         masks[~np.isin(masks, segmentation_ids)] = 0
+#         masks = relabel_sequential(masks)[0]
+#         n_ids = len(segmentation_ids)
+
+#     masks = torch.from_numpy(masks)
+
+#     one_hot_shape = (n_ids + 1,) + masks.shape
+#     masks = masks.unsqueeze(0)  # add dimension to scatter
+#     masks = torch.zeros(one_hot_shape).scatter_(0, masks, 1)[1:]
+
+#     # add the extra singleton dimenion to get shape NUM_OBJECTS x 1 x H x W
+#     masks = masks.unsqueeze(1)
+#     return masks
 def segmentation_to_one_hot(
     segmentation: np.ndarray,
     segmentation_ids: Optional[np.ndarray] = None,
-) -> torch.Tensor:
+    ) -> torch.Tensor:
     """Convert the segmentation to one-hot encoded masks.
 
     Args:
@@ -943,16 +1015,22 @@ def segmentation_to_one_hot(
         The one-hot encoded masks.
     """
     masks = segmentation.copy()
+
+    # Check if the segmentation is empty or contains only background
+    if np.all(masks == 0):
+        print("Warning: No objects were found in the segmentation mask.")
+        return torch.zeros((1, *masks.shape), dtype=torch.float32)  # Return a tensor of zeros
+
     if segmentation_ids is None:
         n_ids = int(segmentation.max())
-
     else:
-        assert segmentation_ids[0] != 0, "No objects were found."
+        # Ensure segmentation_ids is not empty
+        if len(segmentation_ids) == 0 or segmentation_ids[0] == 0:
+            print("Warning: No valid segmentation IDs provided.")
+            return torch.zeros((1, *masks.shape), dtype=torch.float32)  # Return a tensor of zeros
 
-        # the segmentation ids have to be sorted
+        # Sort and filter masks
         segmentation_ids = np.sort(segmentation_ids)
-
-        # set the non selected objects to zero and relabel sequentially
         masks[~np.isin(masks, segmentation_ids)] = 0
         masks = relabel_sequential(masks)[0]
         n_ids = len(segmentation_ids)
@@ -960,13 +1038,12 @@ def segmentation_to_one_hot(
     masks = torch.from_numpy(masks)
 
     one_hot_shape = (n_ids + 1,) + masks.shape
-    masks = masks.unsqueeze(0)  # add dimension to scatter
-    masks = torch.zeros(one_hot_shape).scatter_(0, masks, 1)[1:]
+    masks = masks.unsqueeze(0)  # Add dimension to scatter
+    masks = torch.zeros(one_hot_shape).scatter_(0, masks, 1)[1:]  # Skip background
 
-    # add the extra singleton dimenion to get shape NUM_OBJECTS x 1 x H x W
+    # Add the extra singleton dimension to get shape NUM_OBJECTS x 1 x H x W
     masks = masks.unsqueeze(1)
     return masks
-
 
 def get_block_shape(shape: Tuple[int]) -> Tuple[int]:
     """Get a suitable block shape for chunking a given shape.

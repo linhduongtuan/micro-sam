@@ -289,6 +289,38 @@ class SamTrainer(torch_em.trainer.DefaultTrainer):
             for inp in batched_inputs
         ]
         return batched_inputs, y_one_hot
+    # def _preprocess_batch(self, batched_inputs, y, sampled_ids):
+    #     """Compute one hot target (one mask per channel) for the sampled ids
+    #     and restrict the number of sampled objects to the minimal number in the batch.
+    #     """
+    #     assert len(y) == len(sampled_ids)
+
+    #     # Get the minimal number of objects in this batch.
+    #     # The number of objects in a patch might be < n_objects_per_batch.
+    #     # This is why we need to restrict it here to ensure the same
+    #     # number of objects across the batch.
+    #     n_objects = min(len(ids) for ids in sampled_ids)
+
+    #     y = y.to(self.device)
+    #     # Compute the one hot targets for the seg-id.
+    #     y_one_hot_list = []
+    #     for target, ids in zip(y, sampled_ids):
+    #         one_hot_targets = []
+    #         for seg_id in ids[:n_objects]:
+    #             one_hot_target = target == seg_id
+    #             one_hot_targets.append(one_hot_target)
+    #         if one_hot_targets:
+    #             y_one_hot = torch.stack(one_hot_targets).float()
+    #             y_one_hot_list.append(y_one_hot)
+    #         else:
+    #             y_one_hot_list.append(torch.tensor([]).float())
+
+    #     # Also restrict the prompts to the number of objects.
+    #     batched_inputs = [
+    #         {k: (v[:n_objects] if k in ("point_coords", "point_labels", "boxes") else v) for k, v in inp.items()}
+    #         for inp in batched_inputs
+    #     ]
+    #     return batched_inputs, y_one_hot_list
 
     def _interactive_train_iteration(self, x, y):
         n_pos, n_neg, get_boxes, multimask_output = self._get_prompt_and_multimasking_choices(self._iteration)

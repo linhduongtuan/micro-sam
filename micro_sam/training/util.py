@@ -146,12 +146,32 @@ class ConvertToSamInputs:
         # derive and return the prompts
         point_prompts, point_label_prompts, box_prompts, _ = prompt_generator(object_masks, bbox_coordinates)
         return box_prompts, point_prompts, point_label_prompts, sampled_cell_ids
+    # def _get_prompt_lists(self, gt, n_pos, n_neg, get_boxes, n_samples):
+    #     sampled_cell_ids = None
+    #     if n_samples is not None:
+    #         cell_ids = np.unique(gt)[1:]  # Exclude background
+    #         if len(cell_ids) == 0:
+    #             print("Warning: No objects found in ground truth.")
+    #             return [], [], [], []
+    #         sampled_cell_ids = np.random.choice(cell_ids, size=min(n_samples, len(cell_ids)), replace=False)
+
+    #     object_masks = segmentation_to_one_hot(gt, None if n_samples is None else sampled_cell_ids)
+        
+    #     if object_masks.size == 0:
+    #         print("Warning: No object masks generated.")
+    #         return [], [], [], []
+
+
 
     def __call__(self, x, y, n_pos, n_neg, get_boxes=False, n_samples=None):
         """Convert the outputs of dataloader and prompt settings to the batch format expected by SAM.
         """
         # condition to see if we get point prompts, then we (ofc) use point-prompting
         # else we don't use point prompting
+#         box_prompts, point_prompts, point_label_prompts, sampled_cell_ids = self._get_prompt_lists(
+#       y, n_pos, n_neg, get_boxes, n_samples
+#   )
+
         if n_pos == 0 and n_neg == 0:
             get_points = False
         else:
