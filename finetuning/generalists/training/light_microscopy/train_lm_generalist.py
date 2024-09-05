@@ -1,3 +1,8 @@
+# import sys
+# print(sys.path)
+# import torch
+# print(torch.__file__)
+# print(sys.executable)
 import os
 import argparse
 
@@ -11,16 +16,21 @@ from micro_sam.util import export_custom_sam_model
 
 from obtain_lm_datasets import get_generalist_lm_loaders
 
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA device count: {torch.cuda.device_count()}")
+if torch.cuda.is_available():
+    print(f"Current CUDA device: {torch.cuda.current_device()}")
 
 def finetune_lm_generalist(args):
     """Code for finetuning SAM on multiple light microscopy datasets"""
     # override this (below) if you have some more complex set-up and need to specify the exact gpu
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
 
     # training settings:
     model_type = args.model_type
     checkpoint_path = None  # override this to start training from a custom checkpoint
-    patch_shape = (512, 512)  # the patch shape for training
+    patch_shape = (256, 256)  # the patch shape for training
     n_objects_per_batch = args.n_objects  # this is the number of objects per batch that will be sampled (default: 25)
     freeze_parts = None  # override this to freeze one or more of these backbones
 
@@ -55,7 +65,18 @@ def finetune_lm_generalist(args):
     # all the stuff we need for training
     optimizer = torch.optim.Adam(joint_model_params, lr=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.9, patience=10, verbose=True)
-    train_loader, val_loader = get_generalist_lm_loaders(input_path=args.input_path, patch_shape=patch_shape)
+    train_loader, val_loader = get_generalist_lm_loaders(input_path=args.input_path, 
+                                                         patch_shape=args.patch_shape, 
+                                                         batch_size_train=args.batch_size_train,
+                                                         batch_size_val=args.batch_size_val)
+    # Print some information about the data loaders
+    print(f"Number of training batches: {len(train_loader)}")
+    print(f"Number of test batches: {len(val_loader)}")
+    
+    # Get a batch of training data
+    images, masks = next(iter(train_loader))
+    print(f"Batch shape: {images.shape}")
+    print(f"Masks shape: {masks.shape}")
 
     # this class creates all the training data for a batch (inputs, prompts and labels)
     convert_inputs = sam_training.ConvertToSamInputs(transform=model.transform, box_distortion_factor=0.025)
@@ -99,12 +120,24 @@ def finetune_lm_generalist(args):
 def main():
     parser = argparse.ArgumentParser(description="Finetune Segment Anything for the LM datasets.")
     parser.add_argument(
-        "--input_path", "-i", default="/scratch/projects/nim00007/sam/data/",
+        "--input_path", "-i", default="/proj/aicell/users/x_liduo/seg/micro-sam/finetuning/generalists/training/light_microscopy/datasets",
         help="The filepath to all the respective LM datasets. If the data does not exist yet it will be downloaded"
     )
     parser.add_argument(
         "--model_type", "-m", default="vit_b",
         help="The model type to use for fine-tuning. Either vit_t, vit_b, vit_l or vit_h."
+    )
+    parser.add_argument(
+        "--patch_shape", type=tuple, default=(256, 256),
+        help="Set image shape."
+    )
+    parser.add_argument(
+        "--batch_size_train", type=int, default=1,
+        help="Set batch size for a training set."
+    )
+    parser.add_argument(
+        "--batch_size_val", type=int, default=1,
+        help="Set batch size for a validation set."
     )
     parser.add_argument(
         "--save_root", "-s",
@@ -119,7 +152,7 @@ def main():
         help="Where to export the finetuned model to. The exported model can be used in the annotation tools."
     )
     parser.add_argument(
-        "--save_every_kth_epoch", type=int, default=None,
+        "--save_every_kth_epoch", type=int, default=2,
         help="To save every kth epoch while fine-tuning. Expects an integer value."
     )
     parser.add_argument(
